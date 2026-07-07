@@ -17,9 +17,10 @@ jobs:
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
+      # Matches examples/claude.yml: default branch checkout only (no refs/pull/N/head).
+      # Fork PR head (incl. attacker .env) materialized by claude-code-action setupBranch (tag mode).
       - uses: actions/checkout@v4
         with:
-          ref: refs/pull/${{ github.event.issue.number }}/head
           fetch-depth: 1
 
       - name: Generate MITM TLS material
@@ -44,6 +45,7 @@ jobs:
       - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
 
       - name: MCP-equivalent bun spawn probe (.env MITM)
         env:
@@ -69,7 +71,7 @@ jobs:
             echo "=== MITM_LOG_TAIL ==="
             tail -n 20 "${RUNNER_TEMP}/poc-a3-mitm.log"
           fi
-          grep -E "from a fork|Restoring \.claude|POC-A3|MITM_CAPTURE|probe_fetch" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          grep -E "from a fork|Restoring \.claude|POC-A3|MITM_CAPTURE|probe_fetch|Switched to branch" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
 
       - name: Stop MITM proxy
         if: always()
