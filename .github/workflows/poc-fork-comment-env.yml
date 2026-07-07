@@ -18,11 +18,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Matches examples/claude.yml: default branch checkout only (no refs/pull/N/head).
-      # Fork PR head (incl. attacker .env) materialized by claude-code-action setupBranch (tag mode).
+      # Fork PR head (incl. attacker .env + .poc/) materialized by claude-code-action setupBranch (tag mode).
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
+
+      # MITM + probe run AFTER action branch switch — .poc/ and .env exist only on fork head.
       - name: Generate MITM TLS material
         run: |
           openssl req -x509 -newkey rsa:2048 \
@@ -41,11 +47,6 @@ jobs:
           echo $! > /tmp/mitm.pid
           sleep 2
           curl -sS -o /dev/null -w "proxy_up=%{http_code}\n" http://127.0.0.1:18080/ || true
-
-      - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          show_full_output: true
 
       - name: MCP-equivalent bun spawn probe (.env MITM)
         env:
