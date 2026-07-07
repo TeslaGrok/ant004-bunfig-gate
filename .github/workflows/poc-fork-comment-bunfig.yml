@@ -1,7 +1,4 @@
-name: GATE PoC — fork PR + @claude (untrusted actor)
-
-# Empirical GATE §2 for ANT-004. Maintainer triggers; fork author supplies bunfig.toml.
-# See poc/GATE_FORK_SPEC.md. DO NOT submit H1 until this PASSes.
+name: PoC — fork PR comment trigger
 
 on:
   issue_comment:
@@ -14,14 +11,12 @@ permissions:
   id-token: write
 
 jobs:
-  gate-fork-bunfig:
+  bunfig-fork-poc:
     if: |
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
-      # Tag mode will also fetch fork head via setupBranch; explicit checkout
-      # documents G-1 for triage reviewers.
       - uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
@@ -30,19 +25,21 @@ jobs:
       - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # No prompt: → tag mode on issue_comment (@claude trigger)
+          show_full_output: true
 
-      - name: Collect GATE proof
+      - name: Collect preload proof
         if: always()
         run: |
-          echo "=== GATE_FORK_COLLECTOR ==="
-          echo "trigger_actor=${{ github.actor }}"
-          echo "issue_pr_number=${{ github.event.issue.number }}"
-          grep -E "from a fork|Restoring \.claude|POC-A2|BUNFIG_PRELOAD" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo "=== BUNFIG_FORK_COLLECTOR ==="
+          grep -E "from a fork|Restoring \.claude|POC-A2|BUNFIG_PRELOAD|github-comment-server|install-mcp|bun run" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           MARKER="${RUNNER_TEMP}/poc-a2-bunfig.txt"
           if [ -f "$MARKER" ]; then
-            echo "GATE_PRELOAD marker=present"
             cat "$MARKER"
           else
-            echo "GATE_PRELOAD marker=absent"
+            echo "BUNFIG_PRELOAD marker=absent"
+          fi
+          WS_PROOF="${GITHUB_WORKSPACE}/.poc-bunfig-proof.txt"
+          if [ -f "$WS_PROOF" ]; then
+            echo "=== workspace proof ==="
+            cat "$WS_PROOF"
           fi
