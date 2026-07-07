@@ -17,9 +17,10 @@ jobs:
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
+      # Matches examples/claude.yml: default branch checkout only (no refs/pull/N/head).
+      # Fork PR head is materialized in workspace by claude-code-action setupBranch (tag mode).
       - uses: actions/checkout@v4
         with:
-          ref: refs/pull/${{ github.event.issue.number }}/head
           fetch-depth: 1
 
       - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
@@ -31,7 +32,7 @@ jobs:
         if: always()
         run: |
           echo "=== BUNFIG_FORK_COLLECTOR ==="
-          grep -E "from a fork|Restoring \.claude|POC-A2|BUNFIG_PRELOAD|github-comment-server|install-mcp|bun run" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          grep -E "from a fork|Restoring \.claude|POC-A2|BUNFIG_PRELOAD|Switched to branch|github-comment-server|install-mcp|bun run" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           MARKER="${RUNNER_TEMP}/poc-a2-bunfig.txt"
           if [ -f "$MARKER" ]; then
             cat "$MARKER"
