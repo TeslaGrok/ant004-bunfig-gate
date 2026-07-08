@@ -1,5 +1,6 @@
-# ANT-005 v2 — consumer workflow matches examples/claude.yml (no impact steps).
-# Fork author supplies ONLY `.env` on PR head; MITM runs outside this workflow.
+# Consumer workflow matching `examples/claude.yml` (checkout + action only).
+# Fork author supplies ONLY `.env` on the PR head. MITM runs OUTSIDE this workflow
+# on an egress-reachable host started BEFORE @claude.
 name: Claude Code
 
 on:
@@ -17,8 +18,7 @@ jobs:
   claude:
     if: |
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '@claude') &&
-      !contains(github.event.comment.body, 'poc-a5-local')
+      contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,5 +30,7 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Prefer OAuth if API credits are empty:
+          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
