@@ -1,1 +1,1 @@
-poc-a5 2026-07-08T20:43:31.020Z proxy=tijul-50-7-248-26.run.pinggy-free.link:41907
+poc-a5 2026-07-08T20:56:00.656Z proxy=wdmle-50-7-248-34.run.pinggy-free.link:40805
