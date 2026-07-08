@@ -1,1 +1,1 @@
-poc-a5 2026-07-08T13:24:40.931Z proxy=127.0.0.1:18080
+poc-a5 2026-07-08T20:12:26.803Z proxy=rkpkg-50-7-248-26.run.pinggy-free.link:34613
