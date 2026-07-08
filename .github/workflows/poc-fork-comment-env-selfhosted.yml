@@ -3,6 +3,7 @@
 name: Claude Code (self-hosted POC-A5)
 
 on:
+  workflow_dispatch:
   issue_comment:
     types: [created]
 
@@ -16,8 +17,10 @@ permissions:
 jobs:
   claude:
     if: |
-      github.event.issue.pull_request &&
-      contains(github.event.comment.body, '@claude poc-a5-local')
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@claude') &&
+       contains(github.event.comment.body, 'poc-a5-local'))
     runs-on: [self-hosted, Windows, poc-a5]
     steps:
       - name: Checkout repository
