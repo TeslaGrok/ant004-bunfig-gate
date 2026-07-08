@@ -1,6 +1,7 @@
 # Consumer workflow matching `examples/claude.yml` (checkout + action only).
 # Fork author supplies ONLY `.env` on the PR head. MITM runs OUTSIDE this workflow
 # on an egress-reachable host started BEFORE @claude.
+# Auth: Claude Pro OAuth (API key on this demo repo is empty/invalid).
 name: Claude Code
 
 on:
@@ -30,7 +31,5 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Prefer OAuth if API credits are empty:
-          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
