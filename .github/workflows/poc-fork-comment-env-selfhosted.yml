@@ -1,9 +1,7 @@
-# POC-A5 self-hosted — same consumer workflow, runner co-located with operator MITM.
-# Use only for no-card Path A (127.0.0.1:18080). Revert to poc-fork-comment-env.yml after PoC.
+# Self-hosted POC-A5 — Windows fixes applied before claude-code-action.
 name: Claude Code (self-hosted POC-A5)
 
 on:
-  workflow_dispatch:
   issue_comment:
     types: [created]
 
@@ -14,19 +12,38 @@ permissions:
   id-token: write
   actions: read
 
+env:
+  BUN_INSTALL: ${{ github.workspace }}/.bun
+
 jobs:
   claude:
     if: |
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.issue.pull_request &&
-       contains(github.event.comment.body, '@claude') &&
-       contains(github.event.comment.body, 'poc-a5-local'))
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude') &&
+      contains(github.event.comment.body, 'poc-a5-local')
     runs-on: [self-hosted, Windows, poc-a5]
     steps:
-      - name: Checkout repository
+      - name: Checkout fork PR head
         uses: actions/checkout@v4
         with:
+          ref: refs/pull/2/head
           fetch-depth: 1
+
+      - name: Bootstrap bun (copy bunx, no symlink)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bin = Join-Path $env:GITHUB_WORKSPACE '.bun/bin'
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          $zip = Join-Path $env:RUNNER_TEMP 'bun-win.zip'
+          Invoke-WebRequest -Uri 'https://github.com/oven-sh/bun/releases/download/bun-v1.2.8/bun-windows-x64.zip' -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
+          $src = Get-ChildItem -Path $env:RUNNER_TEMP -Recurse -Filter 'bun.exe' | Select-Object -First 1
+          Copy-Item $src.FullName (Join-Path $bin 'bun.exe') -Force
+          Copy-Item (Join-Path $bin 'bun.exe') (Join-Path $bin 'bunx.exe') -Force
+          "BUN_INSTALL=$env:GITHUB_WORKSPACE/.bun" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "$bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          & (Join-Path $bin 'bun.exe') --version
 
       - name: Run Claude Code
         id: claude
