@@ -12,8 +12,9 @@ permissions:
   id-token: write
   actions: read
 
-env:
-  BUN_INSTALL: ${{ github.workspace }}/.bun
+concurrency:
+  group: poc-a5-selfhosted-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 jobs:
   claude:
@@ -29,21 +30,27 @@ jobs:
           ref: refs/pull/2/head
           fetch-depth: 1
 
-      - name: Bootstrap bun (copy bunx, no symlink)
-        shell: pwsh
+      - name: Bootstrap bun (cmd, no symlink)
+        shell: cmd
         run: |
-          $ErrorActionPreference = 'Stop'
-          $bin = Join-Path $env:GITHUB_WORKSPACE '.bun/bin'
-          New-Item -ItemType Directory -Force -Path $bin | Out-Null
-          $zip = Join-Path $env:RUNNER_TEMP 'bun-win.zip'
-          Invoke-WebRequest -Uri 'https://github.com/oven-sh/bun/releases/download/bun-v1.2.8/bun-windows-x64.zip' -OutFile $zip
-          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
-          $src = Get-ChildItem -Path $env:RUNNER_TEMP -Recurse -Filter 'bun.exe' | Select-Object -First 1
-          Copy-Item $src.FullName (Join-Path $bin 'bun.exe') -Force
-          Copy-Item (Join-Path $bin 'bun.exe') (Join-Path $bin 'bunx.exe') -Force
-          "BUN_INSTALL=$env:GITHUB_WORKSPACE/.bun" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "$bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          & (Join-Path $bin 'bun.exe') --version
+          set "BIN=%GITHUB_WORKSPACE%\.bun\bin"
+          if not exist "%BIN%" mkdir "%BIN%"
+          if defined POC_BUN_BIN if exist "%POC_BUN_BIN%\bun.exe" (
+            copy /Y "%POC_BUN_BIN%\bun.exe" "%BIN%\bun.exe"
+            copy /Y "%POC_BUN_BIN%\bun.exe" "%BIN%\bunx.exe"
+          ) else (
+            curl -sSL -o "%RUNNER_TEMP%\bun-win.zip" "https://github.com/oven-sh/bun/releases/download/bun-v1.2.8/bun-windows-x64.zip"
+            tar -xf "%RUNNER_TEMP%\bun-win.zip" -C "%RUNNER_TEMP%"
+            for /r "%RUNNER_TEMP%" %%f in (bun.exe) do (
+              copy /Y "%%f" "%BIN%\bun.exe"
+              goto :bunok
+            )
+            :bunok
+            copy /Y "%BIN%\bun.exe" "%BIN%\bunx.exe"
+          )
+          echo BUN_INSTALL=%GITHUB_WORKSPACE%/.bun>> %GITHUB_ENV%
+          echo %BIN%>> %GITHUB_PATH%
+          "%BIN%\bun.exe" --version
 
       - name: Run Claude Code
         id: claude
