@@ -51,6 +51,7 @@ jobs:
           echo BUN_INSTALL=%GITHUB_WORKSPACE%/.bun>> %GITHUB_ENV%
           echo %BIN%>> %GITHUB_PATH%
           "%BIN%\bun.exe" --version
+          if defined POC_CLAUDE_BIN echo POC_CLAUDE_BIN=%POC_CLAUDE_BIN%>> %GITHUB_ENV%
 
       - name: Run Claude Code
         id: claude
