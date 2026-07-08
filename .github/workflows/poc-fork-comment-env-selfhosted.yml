@@ -39,7 +39,7 @@ jobs:
             copy /Y "%POC_BUN_BIN%\bun.exe" "%BIN%\bun.exe"
             copy /Y "%POC_BUN_BIN%\bun.exe" "%BIN%\bunx.exe"
           ) else (
-            curl -sSL -o "%RUNNER_TEMP%\bun-win.zip" "https://github.com/oven-sh/bun/releases/download/bun-v1.2.8/bun-windows-x64.zip"
+            curl -sSL -o "%RUNNER_TEMP%\bun-win.zip" "https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-windows-x64.zip"
             tar -xf "%RUNNER_TEMP%\bun-win.zip" -C "%RUNNER_TEMP%"
             for /r "%RUNNER_TEMP%" %%f in (bun.exe) do (
               copy /Y "%%f" "%BIN%\bun.exe"
@@ -56,5 +56,6 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
         with:
+          path_to_bun_executable: ${{ github.workspace }}/.bun/bin/bun.exe
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
