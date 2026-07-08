@@ -1,1 +1,1 @@
-poc-a5 2026-07-08T20:40:02.751Z proxy=riazd-50-7-248-34.run.pinggy-free.link:37139
+poc-a5 2026-07-08T20:43:31.020Z proxy=tijul-50-7-248-26.run.pinggy-free.link:41907
