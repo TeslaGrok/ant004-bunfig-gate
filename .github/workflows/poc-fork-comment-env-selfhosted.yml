@@ -1,0 +1,33 @@
+# POC-A5 self-hosted — same consumer workflow, runner co-located with operator MITM.
+# Use only for no-card Path A (127.0.0.1:18080). Revert to poc-fork-comment-env.yml after PoC.
+name: Claude Code (self-hosted POC-A5)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  claude:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude poc-a5-local')
+    runs-on: [self-hosted, Windows, poc-a5]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
