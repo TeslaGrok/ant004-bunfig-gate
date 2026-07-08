@@ -1,1 +1,1 @@
-poc-a5 2026-07-08T20:12:26.803Z proxy=rkpkg-50-7-248-26.run.pinggy-free.link:34613
+poc-a5 2026-07-08T20:39:16.848Z proxy=bluma-50-7-248-26.run.pinggy-free.link:34129
