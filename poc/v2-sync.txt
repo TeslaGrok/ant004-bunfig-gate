@@ -1,1 +1,1 @@
-poc-a5 2026-07-08T11:36:52.745Z proxy=large-shirts-flow.loca.lt:443
+poc-a5 2026-07-08T12:42:52.768Z proxy=bore.pub:39423
