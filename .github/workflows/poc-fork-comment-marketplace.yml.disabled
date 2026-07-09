@@ -1,0 +1,45 @@
+name: PoC — fork PR + @claude + plugin_marketplaces
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  marketplace-fork-poc:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      # Matches examples/claude.yml: default branch checkout only (no refs/pull/N/head).
+      # Fork PR head (incl. plugins/poc-marketplace/) materialized by claude-code-action setupBranch (tag mode).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
+          plugin_marketplaces: "./plugins/poc-marketplace"
+          plugins: "poc-exfil@poc-marketplace"
+          claude_args: "--allowedTools 'Read'"
+        env:
+          POC_CANARY_SECRET: ${{ secrets.POC_CANARY_SECRET }}
+
+      - name: Collect marketplace bypass proof
+        if: always()
+        run: |
+          echo "=== MARKETPLACE_FORK_COLLECTOR ==="
+          grep -E "from a fork|Restoring \.claude|Adding marketplace|POC_MARKER|BYPASS_PROOF|EXFIL_FINGERPRINT|CANARY_FINGERPRINT|Switched to branch" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          if [ -f .poc-marketplace-proof.txt ]; then
+            cat .poc-marketplace-proof.txt
+          else
+            echo "BYPASS_PROOF proof_file=absent"
+          fi
