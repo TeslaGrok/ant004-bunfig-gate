@@ -1,0 +1,96 @@
+# Self-hosted POC-A5 — Windows fixes applied before claude-code-action.
+name: Claude Code (self-hosted POC-A5)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+concurrency:
+  group: poc-a5-selfhosted-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude') &&
+      contains(github.event.comment.body, 'poc-a5-local')
+    runs-on: [self-hosted, Windows, poc-a5]
+    steps:
+      - name: Checkout fork PR head
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/2/head
+          fetch-depth: 1
+
+      - name: Bootstrap bun (cmd, no symlink)
+        shell: cmd
+        run: |
+          set "BIN=%GITHUB_WORKSPACE%\.bun\bin"
+          if not exist "%BIN%" mkdir "%BIN%"
+          if defined POC_BUN_BIN if exist "%POC_BUN_BIN%\bun.exe" (
+            copy /Y "%POC_BUN_BIN%\bun.exe" "%BIN%\bun.exe"
+            copy /Y "%POC_BUN_BIN%\bun.exe" "%BIN%\bunx.exe"
+          ) else (
+            curl -sSL -o "%RUNNER_TEMP%\bun-win.zip" "https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-windows-x64.zip"
+            tar -xf "%RUNNER_TEMP%\bun-win.zip" -C "%RUNNER_TEMP%"
+            for /r "%RUNNER_TEMP%" %%f in (bun.exe) do (
+              copy /Y "%%f" "%BIN%\bun.exe"
+              goto :bunok
+            )
+            :bunok
+            copy /Y "%BIN%\bun.exe" "%BIN%\bunx.exe"
+          )
+          echo BUN_INSTALL=%GITHUB_WORKSPACE%/.bun>> %GITHUB_ENV%
+          echo %BIN%>> %GITHUB_PATH%
+          "%BIN%\bun.exe" --version
+          if defined POC_CLAUDE_BIN echo POC_CLAUDE_BIN=%POC_CLAUDE_BIN%>> %GITHUB_ENV%
+
+      # Self-hosted Windows: quarantine user ~/.claude so freemodel/third-party
+      # ANTHROPIC_API_KEY cannot override CLAUDE_CODE_OAUTH_TOKEN (Pro subscription).
+      - name: Isolate Claude config (Pro OAuth only)
+        shell: cmd
+        run: |
+          set "CLEAN=%RUNNER_TEMP%\claude-clean"
+          if not exist "%CLEAN%" mkdir "%CLEAN%"
+          set "USER_CLAUDE=%USERPROFILE%\.claude"
+          if exist "%USER_CLAUDE%\settings.json" (
+            move /Y "%USER_CLAUDE%\settings.json" "%USER_CLAUDE%\settings.json.poc-bak"
+          )
+          echo CLAUDE_CONFIG_DIR=%CLEAN%>> %GITHUB_ENV%
+          echo HOME=%RUNNER_TEMP%\claude-home>> %GITHUB_ENV%
+          if not exist "%RUNNER_TEMP%\claude-home" mkdir "%RUNNER_TEMP%\claude-home"
+          echo ANTHROPIC_API_KEY=>> %GITHUB_ENV%
+          echo ANTHROPIC_BASE_URL=>> %GITHUB_ENV%
+          echo ANTHROPIC_AUTH_TOKEN=>> %GITHUB_ENV%
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-clean
+          HOME: ${{ runner.temp }}/claude-home
+          ANTHROPIC_API_KEY: ""
+          ANTHROPIC_BASE_URL: ""
+        with:
+          path_to_bun_executable: ${{ github.workspace }}/.bun/bin/bun.exe
+          path_to_claude_code_executable: ${{ env.POC_CLAUDE_BIN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+
+      - name: Restore user Claude settings
+        if: always()
+        shell: cmd
+        run: |
+          set "USER_CLAUDE=%USERPROFILE%\.claude"
+          if exist "%USER_CLAUDE%\settings.json.poc-bak" (
+            move /Y "%USER_CLAUDE%\settings.json.poc-bak" "%USER_CLAUDE%\settings.json"
+          )
