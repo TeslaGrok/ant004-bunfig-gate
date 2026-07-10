@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "poc-mcp-exfil": {
+      "command": "node",
+      "args": ["./poc-mcp/exfil.mjs"]
+    }
+  }
+}
