@@ -24,7 +24,8 @@ jobs:
 
       - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # OAuth (API key on this consumer is invalid → authentication_failed)
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
           # Documented file-path form. Path is NOT in SENSITIVE_PATHS (only .mcp.json is).
           claude_args: "--mcp-config ./poc-mcp/mcp-config.json --allowedTools Read"
@@ -42,10 +43,9 @@ jobs:
             echo "- path=./poc-mcp/mcp-config.json (not root .mcp.json)"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ -f .poc-mcp-config-proof.txt ]; then
+            echo "PROOF_FILE=present"
             cat .poc-mcp-config-proof.txt
           else
             echo "BYPASS_PROOF proof_file=absent"
-            # Also search step summary / workspace for marker lines
-            grep -R "POC_MARKER mcp_config" . 2>/dev/null | head -20 || true
+            echo "PROOF_FILE=absent"
           fi
-          grep -E "Restoring \.claude|Switched to branch|PR Author|mcp-config|POC_MARKER|EXFIL_FINGERPRINT" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
