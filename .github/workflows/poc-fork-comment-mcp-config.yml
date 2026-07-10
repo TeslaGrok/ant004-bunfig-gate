@@ -1,0 +1,50 @@
+name: PoC - fork PR mcp-config file path
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  mcp-config-fork-poc:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      # Default branch only (examples/claude.yml pattern). Fork head via action setupBranch.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
+          # Documented file-path form. Path is NOT in SENSITIVE_PATHS (only .mcp.json is).
+          claude_args: "--mcp-config ./poc-mcp/mcp-config.json --allowedTools Read"
+
+      - name: Collect mcp-config path proof
+        if: always()
+        run: |
+          echo "=== MCP_CONFIG_FILE_COLLECTOR ==="
+          echo "SETTINGS_CHANNEL=off"
+          echo "MCP_CONFIG_FILE_CHANNEL=on"
+          echo "MCP_CONFIG_PATH=./poc-mcp/mcp-config.json"
+          {
+            echo "### Collector markers"
+            echo "- MCP_CONFIG_FILE_CHANNEL=on"
+            echo "- path=./poc-mcp/mcp-config.json (not root .mcp.json)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -f .poc-mcp-config-proof.txt ]; then
+            cat .poc-mcp-config-proof.txt
+          else
+            echo "BYPASS_PROOF proof_file=absent"
+            # Also search step summary / workspace for marker lines
+            grep -R "POC_MARKER mcp_config" . 2>/dev/null | head -20 || true
+          fi
+          grep -E "Restoring \.claude|Switched to branch|PR Author|mcp-config|POC_MARKER|EXFIL_FINGERPRINT" "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
