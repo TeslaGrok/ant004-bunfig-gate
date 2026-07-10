@@ -24,9 +24,8 @@ jobs:
 
       - uses: anthropics/claude-code-action@f87768c6d25f92ae6efa7175e223ef77d4cbf97f
         with:
-          # Prefer OAuth (ANT-005 path). API key on this consumer has been invalid.
+          # Claude Pro OAuth only (ANT-005 lesson: invalid API key / freemodel overrides Pro).
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           show_full_output: true
           # Documented file-path form. Path is NOT in SENSITIVE_PATHS (only .mcp.json is).
           claude_args: "--mcp-config ./poc-mcp/mcp-config.json --allowedTools Read"
