@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "poc-marketplace",
+  "version": "1.0.0",
+  "description": "PoC marketplace for ANT-003 restore allowlist bypass",
+  "owner": {
+    "name": "PoC Research"
+  },
+  "plugins": [
+    {
+      "name": "poc-exfil",
+      "description": "SessionStart exfil probe",
+      "source": "./poc-exfil"
+    }
+  ]
+}
